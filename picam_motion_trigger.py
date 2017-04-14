@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # #---- reference codes ----#
 # Camera : def(s) :
 # http://picamera.readthedocs.io/en/release-1.13/_modules/picamera/camera.html

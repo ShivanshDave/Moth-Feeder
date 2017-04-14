@@ -17,34 +17,35 @@ import io
 
 class SysVar:
     motion_detection_flag = False
-    last_motion_time = time.time()
-    mot_cnt = 0
+    motion_check_pause = True
+    last_motion_time = 0
+    mot_cnt = -1000
 
 
 class DetectMotion(picamera.array.PiMotionAnalysis):
     def analyse(self, a):
-        a = np.sqrt(
-            np.square(a['x'].astype(np.float)) +
-            np.square(a['y'].astype(np.float))
-        ).clip(0, 255).astype(np.uint8)
-        # todo-RoI will crop image here...
-        # If there're more than (motion_min_vectors) vectors with a magnitude
-        # greater than (motion_threshold), then say we've detected motion
-        if (a > motion_threshold).sum() > motion_min_vectors:
-            SysVar.last_motion_time = time.time()
-            SysVar.motion_detection_flag = True
-            if debug:
-                SysVar.mot_cnt += 1
-                print('--MOTION DETECTED--{}'.format(SysVar.mot_cnt))
-
-        else:
-            if SysVar.motion_detection_flag:
-                if (time.time() - SysVar.last_motion_time) > \
-                        duration_inactivity:
-                    SysVar.motion_detection_flag = False
-                    if debug:
-                        SysVar.mot_cnt = 0
-                    print('--DetectMotion -> TimeOut--')
+        if not SysVar.motion_check_pause:
+            a = np.sqrt(
+                np.square(a['x'].astype(np.float)) +
+                np.square(a['y'].astype(np.float))
+            ).clip(0, 255).astype(np.uint8)
+            # todo-RoI will crop image here...
+            # If there're more than (motion_min_vectors) vectors with a magnitude
+            # greater than (motion_threshold), then say we've detected motion
+            if (a > motion_threshold).sum() > motion_min_vectors:
+                if debug:
+                    SysVar.mot_cnt += 1
+                    print('--MOTION DETECTED--{}'.format(SysVar.mot_cnt))
+                SysVar.last_motion_time = time.time()
+                SysVar.motion_detection_flag = True
+            else:
+                if SysVar.motion_detection_flag:
+                    if (time.time() - SysVar.last_motion_time) > \
+                            duration_inactivity:
+                        SysVar.motion_detection_flag = False
+                        if debug:
+                            SysVar.mot_cnt = -1000
+                        print('--DetectMotion -> TimeOut--')
 
 
 def save_buffer_as_video(_stream, _video_name):
@@ -99,6 +100,7 @@ def main():
                 # uninterrupted recording at port-1
                 camera.start_recording(stream, format='h264', splitter_port=1)
                 # motion vector analysis at port-2
+                SysVar.motion_check_pause = True
                 camera.start_recording('/dev/null', splitter_port=2,
                                        resize=frame_size,
                                        format='h264',
@@ -110,6 +112,7 @@ def main():
 
                 try:
                     print('--Starting motion triggered video capture--')
+                    SysVar.motion_check_pause = False
                     while 1:
                         if SysVar.motion_detection_flag:
                             # get a unique name and start storing video
@@ -120,29 +123,31 @@ def main():
                                                                 '.h264',
                                                    splitter_port=1)
                             if debug:
-                                print('1.0 - recording started at {}'
+                                print('1.0 - recording started as {}'
                                       .format(video_name))
+                                SysVar.mot_cnt = 0
+
+                            # wait for time-out
+                            while SysVar.motion_detection_flag:
+                                camera.wait_recording(1, splitter_port=1)
 
                             # save preTrigger video with sane unique name
                             save_buffer_as_video(stream, video_name)
                             if debug:
                                 print('1.1 - PreTrigger Video saved.')
 
-                            # wait for time-out
-                            while SysVar.motion_detection_flag:
-                                camera.wait_recording(1, splitter_port=1)
-
                             # stop saving in file, start filling buffer again
                             camera.split_recording(stream, splitter_port=1)
                             if debug:
                                 print('1.2 - PostTrigger Video Saved.')
+                        camera.wait_recording(0.2)    
                 finally:
                     print('\n--Closing Camera--\n')
                     camera.stop_recording(splitter_port=1)
                     camera.stop_recording(splitter_port=2)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  
     import argparse
 
     # #---- Video parameters ----#

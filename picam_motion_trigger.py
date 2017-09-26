@@ -49,26 +49,26 @@ def save_buffer_as_video(_stream, _video_name):
 
 
 def _init_defaults(self):
-    self.sharpness = 0
-    self.contrast = 0
-    self.brightness = 50
-    self.saturation = 0
-    self.iso = 0  # auto
+    # self.sharpness = 0
+    # self.contrast = 0
+    # self.brightness = 50
+    # self.saturation = 0
+    # self.iso = 0  # auto
     self.video_stabilization = True
-    self.exposure_compensation = 0
-    self.exposure_mode = 'auto'
-    self.meter_mode = 'average'
-    self.awb_mode = 'auto'
-    self.image_effect = 'none'
-    self.color_effects = None
+    # self.exposure_compensation = 0
+    # self.exposure_mode = 'auto'
+    # self.meter_mode = 'average'
+    # self.awb_mode = 'auto'
+    # self.image_effect = 'none'
+    # self.color_effects = None
     self.rotation = frame_rotate
-    self.hflip = self.vflip = False
-    self.zoom = (0.0, 0.0, 1.0, 1.0)
+    # self.hflip = self.vflip = False
+    # self.zoom = (0.0, 0.0, 1.0, 1.0)
     self.resolution = (frame_width, frame_height)
     self.framerate = frame_fps
 
 
-class SysVar():
+class SysVar:
     motion_detection_flag = False
     last_motion_time = time.time()
 
@@ -87,11 +87,11 @@ class DetectMotion(picamera.array.PiMotionAnalysis):
             SysVar.last_motion_time = time.time()
         else:
             if SysVar.motion_detection_flag:
-                if (time.time() - SysVar.last_motion_time > duration_inactivity):
+                if (time.time() - SysVar.last_motion_time) > duration_inactivity:
                     SysVar.motion_detection_flag = False
                     print('DetectMotion->TimeOut')
 
-print('Check 0.1')ls
+print('Check 0.1')
 with picamera.PiCamera() as camera:
     # decreasing frame_size for detection can speedup process
     with DetectMotion(camera, size=frame_size) as output:
@@ -113,7 +113,7 @@ with picamera.PiCamera() as camera:
             camera.wait_recording(2)
             print('Check 0.6')
             # ----------------------------------------------------------------#
-            SysVar.motion_detection_flag = False
+            # SysVar.motion_detection_flag = False
             try:
                 print('--Starting motion triggered video capture--')
                 while 1:

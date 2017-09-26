@@ -13,7 +13,7 @@ import io
 
 # #---- Video parameters ----#
 frame_width, frame_height = 640, 480
-frame_rotate = 0  # 0 to disable rotation
+frame_rotate = 90  # 0 to disable rotation
 frame_fps = 30  # to be tested and adjusted
 # todo : add 2 different fps for pre-motion and post-motion
 duration_premotion = 3
@@ -24,6 +24,9 @@ frame_timestamp_embbed = 1  # 0 to disable
 
 motion_threshold = 60
 motion_min_vectors = 10
+
+debug = True
+# debug = False
 
 # Save video here...
 datapath = '/media/pi/lab6'
@@ -61,7 +64,8 @@ def _init_defaults(self):
     # self.awb_mode = 'auto'
     # self.image_effect = 'none'
     # self.color_effects = None
-    self.rotation = frame_rotate
+    if frame_rotate:
+        self.rotation = frame_rotate
     # self.hflip = self.vflip = False
     # self.zoom = (0.0, 0.0, 1.0, 1.0)
     self.resolution = (frame_width, frame_height)
@@ -83,35 +87,40 @@ class DetectMotion(picamera.array.PiMotionAnalysis):
         # If there're more than (motion_min_vectors) vectors with a magnitude
         # greater than (motion_threshold), then say we've detected motion
         if (a > motion_threshold).sum() > motion_min_vectors:
-            SysVar.motion_detection_flag = True
             SysVar.last_motion_time = time.time()
+            SysVar.motion_detection_flag = True
+            if debug:
+                print('2 - Motion Detected')
+
         else:
             if SysVar.motion_detection_flag:
                 if (time.time() - SysVar.last_motion_time) > duration_inactivity:
                     SysVar.motion_detection_flag = False
-                    print('DetectMotion->TimeOut')
+                    print('--DetectMotion -> TimeOut--')
 
-print('Check 0.1')
+if debug:
+    print('0.1-Videos will be saved at {}'.format(datapath))
 with picamera.PiCamera() as camera:
     # decreasing frame_size for detection can speedup process
     with DetectMotion(camera, size=frame_size) as output:
         # initiate circular buffer as stream
         with picamera.PiCameraCircularIO(camera, seconds=duration_premotion) \
                 as stream:
-            print('Check 0.2')
+            if debug:
+                print('0.2-Setting-up camera parameters.\nRes:{},{}\nFPS:{}'
+                      .format(frame_width,frame_height,frame_fps))
             _init_defaults(camera)
-            print('Check 0.3')
             # uninterrupted recording at port-1
             camera.start_recording(stream, format='h264', splitter_port=1)
             # motion vector analysis at port-2
-            print('Check 0.4')
             camera.start_recording('/dev/null', splitter_port=2,
                                    resize=frame_size,
                                    format='h264',
                                    motion_output=output)
-            print('Check 0.5')
+            if debug:
+                print('0.3-Recording started at port1 (Video) and port2 (Motion'
+                  'Detect @ Full frame)')
             camera.wait_recording(2)
-            print('Check 0.6')
             # ----------------------------------------------------------------#
             # SysVar.motion_detection_flag = False
             try:
@@ -120,19 +129,21 @@ with picamera.PiCamera() as camera:
                     if SysVar.motion_detection_flag:
                         video_name = datapath + "/" + time.strftime(
                             "pi_vid_%Y%m%d-%H%M%S", time.localtime())
-                        print('recording started at {}'.format(video_name))
+                        if debug:
+                            print('1.0 - recording started at {}'.format
+                                  (video_name))
                         camera.split_recording(video_name + '-post_trigger.h264',
                                                splitter_port=1)
-                        print('Check 1')
                         save_buffer_as_video(stream, video_name)
-                        print('Check 1.1')
+                        if debug:
+                            print('1.1 - PreTrigger Video saved.')
                         while SysVar.motion_detection_flag:
                             camera.wait_recording(1, splitter_port=1)
                         # stop saving in file, start filling buffer again
-                        print('Check 1.2')
                         camera.split_recording(stream, splitter_port=1)
-                        print('VideoSaved')
+                        if debug:
+                            print('1.2 - PostTrigger Video Saved.')
             finally:
-                print('Stopping Camera')
+                print('\n--Closing Camera--\n')
                 camera.stop_recording(splitter_port=1)
                 camera.stop_recording(splitter_port=2)

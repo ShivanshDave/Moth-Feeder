@@ -1,12 +1,16 @@
-#!/usr/bin/env python
-# #---- reference codes ----#
-# Camera : def(s) :
-# http://picamera.readthedocs.io/en/release-1.13/_modules/picamera/camera.html
-# Motion : basic code - 15.9 :
-# http://picamera.readthedocs.io/en/release-1.13/api_array.html
-# CircIO : http://picamera.readthedocs.io/en/release-1.13/api_streams.html
-# # RES : V2-Mode-4 : 1640x1232 @ 0.1 - 40 FPS
-# # RES : V2-Mode-6 : 1280x720 @ 40 - 90 FPS
+# !/usr/bin/env python
+
+"""
+Reference codes.
+
+Camera : def(s)
+http://picamera.readthedocs.io/en/release-1.13/_modules/picamera/camera.html
+Motion : basic code - 15.9 :
+http://picamera.readthedocs.io/en/release-1.13/api_array.html
+CircIO : http://picamera.readthedocs.io/en/release-1.13/api_streams.html
+    SUGGESTED resolutions : V2-Mode-4 : 1640x1232 @ 0.1 - 40 FPS
+    SUGGESTED resolutions : V2-Mode-6 : 1280x720 @ 40 - 90 FPS
+"""
 
 from __future__ import print_function, division
 import numpy as np
@@ -17,6 +21,8 @@ import io
 
 
 class SysVar:
+    """System Variables."""
+
     motion_detection_flag = False
     motion_check_pause = True
     last_motion_time = 0
@@ -24,15 +30,19 @@ class SysVar:
 
 
 class DetectMotion(picamera.array.PiMotionAnalysis):
+    """Producer called by pi camera at each frame."""
+
     def analyse(self, a):
+        """Give motion vector as 'a'."""
         if not SysVar.motion_check_pause:
             a = np.sqrt(
                 np.square(a['x'].astype(np.float)) +
                 np.square(a['y'].astype(np.float))
             ).clip(0, 255).astype(np.uint8)
             # todo-RoI will crop image here...
-            # If there're more than (motion_min_vectors) vectors with a magnitude
-            # greater than (motion_threshold), then say we've detected motion
+            # If there're more than (motion_min_vectors) vectors with a
+            # magnitude greater than (motion_threshold), then say we've
+            # detected motion
             if (a > motion_threshold).sum() > motion_min_vectors:
                 if debug:
                     SysVar.mot_cnt += 1
@@ -50,6 +60,7 @@ class DetectMotion(picamera.array.PiMotionAnalysis):
 
 
 def save_buffer_as_video(_stream, _video_name):
+    """Save circular buffer as a h264 video and empties the buffer."""
     with io.open(_video_name + '-pre_trigger.h264', 'wb') as output:
         for frame in _stream.frames:
             if frame.frame_type == picamera.PiVideoFrameType.sps_header:
@@ -87,6 +98,7 @@ def _init_defaults(self):
 
 
 def main():
+    """Process motion and save videos before and after motion."""
     with picamera.PiCamera() as camera:
         # initiate circular buffer as stream
         with picamera.PiCameraCircularIO(camera, seconds=duration_premotion) \
@@ -108,7 +120,7 @@ def main():
                                        motion_output=output)
                 camera.wait_recording(2)
                 if debug:
-                    print('0.2 -> Recording started at port1 (Video) and port2 '
+                    print('0.2 -> Recording started at port1 (Video) and port2'
                           '(Motion Detect @ Full frame)')
 
                 try:
@@ -141,19 +153,19 @@ def main():
                             camera.split_recording(stream, splitter_port=1)
                             if debug:
                                 print('1.2 - PostTrigger Video Saved.')
-                        camera.wait_recording(0.2)    
+                        camera.wait_recording(0.2)
                 finally:
                     print('\n--Closing Camera--\n')
                     camera.stop_recording(splitter_port=1)
                     camera.stop_recording(splitter_port=2)
 
 
-if __name__ == '__main__':  
+if __name__ == '__main__':
     import argparse
 
     # #---- Video parameters ----#
     parser = argparse.ArgumentParser(description='Get settings for recording.')
-    parser.add_argument('-p', '--path', help='data output path </path/folder/>',
+    parser.add_argument('-p', '--path', help='output path </path/folder/>',
                         dest='datapath', default='/home/pi/', type=str)
     parser.add_argument('-wf', '--width', help='frame width.',
                         dest='frame_width', default=1280, type=int)
@@ -191,8 +203,8 @@ if __name__ == '__main__':
 
     if debug:
         print("datapath = {}; frame_width = {}; frame_fps = {}; frame_rotate ="
-              " {}; motion_threshold = {}; motion_min_vectors = {}; duration_pr"
-              "emotion= {}; duration_inactivity = {}; debug = {};"
+              " {}; motion_threshold = {}; motion_min_vectors = {}; "
+              "duration_premotion= {}; duration_inactivity = {}; debug = {};"
               .format(datapath, frame_width, frame_fps, frame_rotate,
                       motion_threshold, motion_min_vectors, duration_premotion,
                       duration_inactivity, debug))

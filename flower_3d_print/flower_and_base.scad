@@ -12,7 +12,10 @@ rotate_extrude($fn = fn_corolla_pelets) // 360 degree rotate
         polygon( points=[[0,0], [0,l_flower], [l_flower,l_flower], 
         [l_flower,-l_flower], [-l_flower,-l_flower], [-l_flower, 0]]);
     }
-    //additional-pipe
+    // petels
+    translate([r_nectory+l_flower, l_additional_corolla_pipe+l_flower-thick_flower, 0])
+    square([l_petel,thick_flower]);
+    //additional-pipe-base
     translate([r_nectory, 0, 0])
     square([thick_flower,l_additional_corolla_pipe]);
 }
